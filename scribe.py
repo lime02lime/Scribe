@@ -1,9 +1,11 @@
 import json
-import requests
+import requests  #cannot import requests directly
 import os
 import openai
+import assemblyai as aai
 
-# function to download the audio from facebook servers:
+# Define audio download and transcription functions:
+
 def download_audio(media_url, headers):
     try:
         # Get the media metadata
@@ -36,7 +38,29 @@ def download_audio(media_url, headers):
     return None  # Return None in case of failure
 
 
-# function to transcribe the audio message using openai whisper:
+# Transcription with assemblyAi api:
+def transcribe_audio(temp_audio_path):
+    # ensure that a file was found
+    if not temp_audio_path:
+        return 'Audio not sent to transcription, failed at download stage'
+    
+    # attempt transcription using assemblyAi api
+    try:
+        aai.settings.api_key = os.getenv('ASSEMBLY_TOKEN')
+        with open(temp_audio_path, "rb") as audio_file:
+            transcriber = aai.Transcriber()
+            transcript = transcriber.transcribe(audio_file)
+            print(f"AssemblyAI transcript: {transcript.text}")
+        
+        return transcript.text
+
+    # if this fails, print error and return None
+    except Exception as e:
+        print(f'failed to transcribe, error: {e}')
+        return None
+
+# Transcription with OpenAI Whisper API:
+""" 
 def transcribe_audio(temp_audio_path):
     # ensure that a file was found
     if not temp_audio_path:
@@ -49,7 +73,6 @@ def transcribe_audio(temp_audio_path):
             transcription = openai.Audio.transcribe(
                 model = "whisper-1",
                 file = audio_file,
-                # prompt to guide the transcription, mostly to be able to use two languages at a time. By default it would translate everything into a single language.
                 prompt="Tbh though, nem me incomoda assim tanto. Gosto da situação que temos agora and I just don't really want that to change. Tipo, life's pretty good rn! I'm happy!"
             )
         
@@ -62,9 +85,8 @@ def transcribe_audio(temp_audio_path):
     except Exception as e:
         print(f'failed to transcribe, error: {e}')
         return None
+"""
 
-
-# function to respond to the user with the transcribed message:
 def send_message(target_number, scribe_number, text, preview_url=False):
     url = f"https://graph.facebook.com/v21.0/{scribe_number}/messages"
     headers = {
@@ -85,7 +107,6 @@ def send_message(target_number, scribe_number, text, preview_url=False):
     return response.json()
 
 
-# this function is called by lambda once the webhook event is received:
 def lambda_handler(event, context):
 
     print(json.dumps(event))
