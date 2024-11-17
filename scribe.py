@@ -1,5 +1,5 @@
 import json
-import requests  #cannot import requests directly
+import requests
 import os
 import openai
 import assemblyai as aai
@@ -40,6 +40,7 @@ def download_audio(media_url, headers):
 
 # Transcription with assemblyAi api:
 def transcribe_audio(temp_audio_path):
+
     # ensure that a file was found
     if not temp_audio_path:
         return 'Audio not sent to transcription, failed at download stage'
@@ -48,7 +49,8 @@ def transcribe_audio(temp_audio_path):
     try:
         aai.settings.api_key = os.getenv('ASSEMBLY_TOKEN')
         with open(temp_audio_path, "rb") as audio_file:
-            transcriber = aai.Transcriber()
+            config = aai.TranscriptionConfig(language_detection=True) # aai defaults to English, must indicate language detection
+            transcriber = aai.Transcriber(config = config)
             transcript = transcriber.transcribe(audio_file)
             print(f"AssemblyAI transcript: {transcript.text}")
         
