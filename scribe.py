@@ -3,6 +3,8 @@ import requests
 import os
 import openai
 import assemblyai as aai
+from datetime import datetime
+import boto3
 
 # Define audio download and transcription functions:
 
@@ -49,7 +51,7 @@ def transcribe_audio(temp_audio_path):
     try:
         aai.settings.api_key = os.getenv('ASSEMBLY_TOKEN')
         with open(temp_audio_path, "rb") as audio_file:
-            config = aai.TranscriptionConfig(language_detection=True) # aai defaults to English, must indicate language detection
+            config = aai.TranscriptionConfig(language_detection=True) # for language detection rather than default English
             transcriber = aai.Transcriber(config = config)
             transcript = transcriber.transcribe(audio_file)
             print(f"AssemblyAI transcript: {transcript.text}")
@@ -108,8 +110,49 @@ def send_message(target_number, scribe_number, text, preview_url=False):
     response = requests.post(url, headers=headers, json=payload)
     return response.json()
 
+def get_file_size(file_path):
+    try:
+        return os.path.getsize(file_path)  # Size in bytes
+    except Exception as e:
+        print(f"Error getting file size: {e}")
+        return None
+
+def log_event(startTime, endTime, eventBody, outcome="success", fileSize=None):
+    # Extract details from the event
+    wa_id = eventBody['entry'][0]['changes'][0]['value']['contacts'][0]['wa_id']
+    message_id = eventBody['entry'][0]['changes'][0]['value']['messages'][0]['id']
+
+    # Calculate the time delta
+    if isinstance(startTime, datetime) and isinstance(endTime, datetime):
+        #to get the number of milliseconds:
+        time_delta = round((endTime - startTime).total_seconds() * 1000)
+        print(time_delta)
+    else:
+        raise ValueError("startTime and endTime must be datetime objects")
+
+    # Connect to DynamoDB
+    dynamodb = boto3.resource('dynamodb')
+    table = dynamodb.Table('ScribeEventData')
+
+    # Store the event data
+    response = table.put_item(
+        Item={
+            'userID': wa_id,  # Use wa_id as the unique identifier
+            'MessageID': message_id,
+            'startDateTime': startTime.isoformat(),
+            'endDateTime': endTime.isoformat(),
+            'TimeDelta': time_delta,
+            'Outcome': outcome,
+            'FileSize': fileSize
+        }
+    )
+    print("PutItem succeeded:", response)
+    return response
+
 
 def lambda_handler(event, context):
+
+    startTime = datetime.utcnow()
 
     print(json.dumps(event))
     body = json.loads(event['body'])
@@ -148,15 +191,28 @@ def lambda_handler(event, context):
         'Authorization': f'Bearer {access_token}' #currently this token resets once in a while, will need a fix
     }
 
-    # download the audio based on the media_id value:
+    # download the audio based on the media_id value, and check file size:
     temp_audio_path = download_audio(media_url, headers)
+    audio_size = get_file_size(temp_audio_path)
+    print(f"AUDIO SIZE: {audio_size}")
     
     # transcribe the audio
     transcription_text = transcribe_audio(temp_audio_path)
+    if temp_audio_path and os.path.exists(temp_audio_path):
+        os.remove(temp_audio_path)
 
     # respond to the user with the transcribed text
     if transcription_text:
         send_message(target_number, scribe_number, transcription_text, preview_url=False)
+
+        endTime = datetime.utcnow()
+        log_event(
+            startTime=startTime,
+            endTime=endTime,
+            eventBody=body,
+            outcome="success",
+            fileSize=audio_size
+        )
 
         return {
             "statusCode": 200,
