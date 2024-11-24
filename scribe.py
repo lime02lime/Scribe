@@ -151,7 +151,6 @@ def log_event(startTime, endTime, eventBody, outcome="success", fileSize=None):
 
 
 def lambda_handler(event, context):
-
     startTime = datetime.utcnow()
 
     print(json.dumps(event))
@@ -166,7 +165,7 @@ def lambda_handler(event, context):
 
     # if type is not audio then its a text message or other message type, not audio, exit:
     messages = body['entry'][0]['changes'][0]['value']['messages'][0]
-    if messages['type'] != 'audio' or 'audio' not in messages:
+    if messages['type'] != 'audio':
         target_number, scribe_number = messages['from'], body['entry'][0]['changes'][0]['value']['metadata']['phone_number_id']
         send_message(target_number, scribe_number, 'Please send a voice message for me to transcribe', preview_url=False)
         return {
@@ -188,13 +187,19 @@ def lambda_handler(event, context):
     access_token = os.getenv('WHATSAPP_TOKEN')
     media_url = f'https://graph.facebook.com/v21.0/{audio_id}/'
     headers = {
-        'Authorization': f'Bearer {access_token}' #currently this token resets once in a while, will need a fix
+        'Authorization': f'Bearer {access_token}' # token in system variables
     }
 
     # download the audio based on the media_id value, and check file size:
     temp_audio_path = download_audio(media_url, headers)
     audio_size = get_file_size(temp_audio_path)
     print(f"AUDIO SIZE: {audio_size}")
+    if audio_size > 350000:
+        send_message(target_number, scribe_number, "Audio too large", preview_url=False)
+        return {
+            "statusCode": 200,
+            "body": json.dumps({"message": "Audio too large"})
+        }
     
     # transcribe the audio
     transcription_text = transcribe_audio(temp_audio_path)
@@ -220,6 +225,17 @@ def lambda_handler(event, context):
         }
     
     else:
+        send_message(target_number, scribe_number, "No words detected", preview_url=False)
+
+        endTime = datetime.utcnow()
+        log_event(
+            startTime=startTime,
+            endTime=endTime,
+            eventBody=body,
+            outcome="no words detected",
+            fileSize=audio_size
+        )
+
         return {
             "statusCode": 200,
             "body": json.dumps({"message": "Transcription failed"})
