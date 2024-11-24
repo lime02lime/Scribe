@@ -2,6 +2,8 @@
 
 Scribe is a WhatsApp chatbot that allows users to transcribe voice messages. When a voice message is received, users can forward it to the bot, which will respond with a message containing the transcribed text. The bot does not initiate conversations—it only responds to messages sent by users.
 
+**Try out the Beta version [here](https://wa.me/message/TGOE4TP4HTX6H1).**
+
 **Currently in development. This app is for personal use only and not for commercial purposes.**
 
 ## Overview
@@ -70,7 +72,7 @@ Ensure that your WhatsApp Business API webhook is set up to send incoming messag
 ```
 
 ### 2. Set up Lambda Environment
-AWS Lambda cannot install all libraries, so the required libraries must be added as Layers to the lambda environment. I downloaded my required python libraries to a local folder Python, which I saved as .zip. On AWS Lambda, I then created a Layer that I uploaded the .zip file to, which I finally attached to my Lambda function.
+AWS Lambda cannot install all libraries, so the required libraries must be added as Layers to the lambda environment. I installed my required python libraries to a local folder Python, which I saved as .zip. On AWS Lambda, I then created a Layer that I uploaded the .zip file to, which I finally attached to my Lambda function.
 
 ### 3. Other Items to Configure
 - Upload the scribe.py code to your Lambda function.
@@ -91,7 +93,6 @@ AWS Lambda cannot install all libraries, so the required libraries must be added
 5. Runs transcribe_audio to transcribe the audio file, returning the transcribed text.
 6. If the text was successfully transcribed, it runs send_message to send this text back to the user.
 7. Returns a JSON response with status code 200, indicating whether the operation was successful or where it failed.
-
 
 `transcribe_audio`:
 1. Accesses the AssemblyAI API token from system variables.
