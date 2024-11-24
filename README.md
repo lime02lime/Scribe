@@ -12,6 +12,7 @@ Scribe is a WhatsApp chatbot that allows users to transcribe voice messages. Whe
 - This URL is created using AWS API Gateway, which forwards the webhook to AWS Lambda.
 - AWS Lambda is triggered, fetching the received message and transcribing it if it is an audio file.
 - The transcribed message is then sent back to the user.
+- Performance info is saved to a DynamoDB database, containing the user ID, audio file size, and the time taken for the lambda function to run.
 
 ## Prerequisites
 
@@ -74,7 +75,10 @@ Ensure that your WhatsApp Business API webhook is set up to send incoming messag
 ### 2. Set up Lambda Environment
 AWS Lambda cannot install all libraries, so the required libraries must be added as Layers to the lambda environment. I installed my required python libraries to a local folder Python, which I saved as .zip. On AWS Lambda, I then created a Layer that I uploaded the .zip file to, which I finally attached to my Lambda function.
 
-### 3. Other Items to Configure
+### 3. Set up DynamoDB Database:
+Create a table in AWS DynamoDB with a name that can be referenced in the log_event function.
+
+### 4. Other Items to Configure
 - Upload the scribe.py code to your Lambda function.
 - Ensure that your webhook endpoint is publicly accessible.
 - Configure the webhook URL in the WhatsApp Business API settings.
